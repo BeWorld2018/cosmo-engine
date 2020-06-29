@@ -49,4 +49,8 @@ void flush_input();
 
 bool is_return_key(SDL_Keycode key);
 
+void controller_shutdown();
+void controller_init();
+Uint8 GetButton(SDL_GameControllerButton button);
+
 #endif //COSMO_ENGINE_INPUT_H

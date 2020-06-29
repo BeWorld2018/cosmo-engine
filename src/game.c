@@ -28,7 +28,7 @@
 #include "high_scores.h"
 #include "config.h"
 
-#define COSMO_INTERVAL 100
+#define COSMO_INTERVAL 80 // 100 = defaut
 
 //Data
 game_play_mode_enum game_play_mode = PLAY_GAME;

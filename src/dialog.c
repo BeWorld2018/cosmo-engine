@@ -18,6 +18,7 @@
 #include "fullscreen_image.h"
 #include "cartoon.h"
 #include "high_scores.h"
+#include "input.h"
 
 //Data
 uint8 show_one_moment_screen_flag = 0;

@@ -11,8 +11,8 @@
 #include "audio.h"
 #include "music.h"
 
-#define AUDIO_DESIRED_SAMPLE_RATE 22050
-#define AUDIO_DESIRED_NUM_CHANNELS 1
+#define AUDIO_DESIRED_SAMPLE_RATE 44100
+#define AUDIO_DESIRED_NUM_CHANNELS 2
 
 AudioConfig audioConfig;
 
@@ -25,7 +25,7 @@ void audio_init()
         return;
     }
 
-    if( Mix_OpenAudio( AUDIO_DESIRED_SAMPLE_RATE, AUDIO_S16LSB, AUDIO_DESIRED_NUM_CHANNELS, 1024*2 ) == -1 )
+    if( Mix_OpenAudio( AUDIO_DESIRED_SAMPLE_RATE, AUDIO_S16SYS, AUDIO_DESIRED_NUM_CHANNELS, 1024*2 ) == -1 )
     {
         printf("ERROR: Opening audio mixer!\n");
         return;
@@ -50,7 +50,11 @@ void audio_init()
                 audioConfig.bytesPerSample = 2;
                 break;
             case AUDIO_U16MSB: format_str="U16MSB"; break;
-            case AUDIO_S16MSB: format_str="S16MSB"; break;
+            case AUDIO_S16MSB: 
+				format_str="S16MSB";
+       			audioConfig.format = AUDIO_INT16_SIGNED_LSB;
+                audioConfig.bytesPerSample = 2;
+				break;
             case AUDIO_F32LSB:
                 format_str="F32LSB";
                 audioConfig.format = AUDIO_FLOAT32_SIGNED_LSB;
@@ -60,12 +64,12 @@ void audio_init()
         printf("audio_init(): opened=%d times  frequency=%dHz  format=%s  channels=%d\n",
                numtimesopened, audioConfig.sampleRate, format_str, audioConfig.numChannels);
 
-        if(format != AUDIO_S16LSB && format != AUDIO_F32LSB)
+       /* if(format != AUDIO_S16LSB && format != AUDIO_F32LSB)
         {
             printf("ERROR: AUDIO_S16LSB or AUDIO_F32LSB required. found 0x%X\n", format);
             audio_shutdown();
             return;
-        }
+        }*/
     }
 
     music_init();

@@ -13,6 +13,7 @@
 #include "dialog.h"
 #include "demo.h"
 #include "config.h"
+#include "video.h"
 
 SDL_Keycode cfg_up_key;
 SDL_Keycode cfg_down_key;
@@ -20,6 +21,8 @@ SDL_Keycode cfg_left_key;
 SDL_Keycode cfg_right_key;
 SDL_Keycode cfg_jump_key;
 SDL_Keycode cfg_bomb_key;
+
+SDL_GameController *controller = NULL;
 
 uint8 bomb_key_pressed = 0;
 uint8 jump_key_pressed = 0;
@@ -34,6 +37,32 @@ uint8 input_up_key_pressed = 0;
 
 uint8 byte_2E17C; //modifies the left, right and jump key presses TODO this isn't wired up yet. It might disable player input.
 
+void controller_init() {
+	
+	if (SDL_NumJoysticks() > 0) {
+		if (SDL_IsGameController(0)) {
+			controller = SDL_GameControllerOpen(0);		
+			if (controller) {
+				printf("Open GameController %s\n", SDL_GameControllerNameForIndex(0));
+			}
+		}		
+	}
+	
+}
+
+void controller_shutdown() {
+	
+	if (controller != NULL) {
+		SDL_GameControllerClose(controller);
+	}
+	
+}
+
+Uint8 GetButton(SDL_GameControllerButton button) {
+	if (controller == NULL) return 0;
+	return SDL_GameControllerGetButton(controller, button);
+}
+
 void wait_for_time_or_key(int delay_in_game_cycles)
 {
     reset_player_control_inputs();
@@ -41,8 +70,14 @@ void wait_for_time_or_key(int delay_in_game_cycles)
     {
         SDL_Event event;
         while(SDL_PollEvent(&event))
-        {
-            if (event.type == SDL_KEYDOWN && !event.key.repeat)
+        {	
+			if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
+				video_update();
+			}		
+			if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_F12) {
+				video_set_fullscreen(!isFullscreen());
+			}
+			else if (event.type == SDL_KEYDOWN && !event.key.repeat)
             {
                 return;
             }
@@ -53,11 +88,12 @@ void wait_for_time_or_key(int delay_in_game_cycles)
 
 void cosmo_wait(int delay)
 {
-    SDL_Delay((Uint32)(8 * delay));
+    SDL_Delay((Uint32)(8 * delay)); // 8
 }
 
 input_state_enum handle_demo_input()
 {
+	
     if(poll_for_key_press(false) != SDLK_UNKNOWN)
     {
         return QUIT;
@@ -206,6 +242,7 @@ input_state_enum handle_key_up(SDL_KeyboardEvent event)
 
 input_state_enum read_input()
 {
+
     if(game_play_mode ==  PLAY_DEMO)
     {
         return handle_demo_input();
@@ -213,13 +250,21 @@ input_state_enum read_input()
 
     //FIXME handle cheats.
     SDL_Event event;
-
+	
     while(SDL_PollEvent(&event))
     {
+
+		if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
+			video_update();
+		}
+			
         if (event.type == SDL_QUIT)
         {
             return QUIT;
         }
+		else if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_F12) {
+				video_set_fullscreen(!isFullscreen());
+		}
         else if (event.type == SDL_KEYDOWN)
         {
             if(handle_key_down(event.key) == QUIT)
@@ -229,6 +274,63 @@ input_state_enum read_input()
         {
             handle_key_up(event.key);
         }
+		
+		if (event.type == SDL_CONTROLLERAXISMOTION) {
+			switch (event.caxis.axis) {
+			case SDL_CONTROLLER_AXIS_LEFTX:
+			case SDL_CONTROLLER_AXIS_RIGHTX:
+				if (event.caxis.value < -16384) {
+					left_key_pressed = 1;
+				} else {
+					left_key_pressed = 0;
+				}
+				if (event.caxis.value > 16384) {
+					right_key_pressed = 1;
+				} else {
+					right_key_pressed = 0;
+				}
+				break;
+			case SDL_CONTROLLER_AXIS_LEFTY:
+			case SDL_CONTROLLER_AXIS_RIGHTY:
+				if (event.caxis.value < -16384) {
+					 input_up_key_pressed = 1;
+				} else {
+					 input_up_key_pressed = 0;
+				}
+				if (event.caxis.value > 16384) {
+					 down_key_pressed = 1;
+				} else {
+					down_key_pressed = 0;
+				}
+				break;
+			}
+		}
+		if (event.type == SDL_CONTROLLERBUTTONDOWN) {
+			switch (event.cbutton.button) {
+				case SDL_CONTROLLER_BUTTON_DPAD_UP: input_up_key_pressed = 1;break;
+				case SDL_CONTROLLER_BUTTON_DPAD_DOWN: down_key_pressed = 1;break;
+				case SDL_CONTROLLER_BUTTON_DPAD_LEFT: left_key_pressed = 1;break;
+				case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: right_key_pressed = 1; break;
+				case SDL_CONTROLLER_BUTTON_A: jump_key_pressed = 1; break;
+				case SDL_CONTROLLER_BUTTON_B: bomb_key_pressed = 1;break;
+				case SDL_CONTROLLER_BUTTON_START:
+				case SDL_CONTROLLER_BUTTON_BACK:
+					   return QUIT;
+					break;
+				default: break;
+			}
+		}
+		if (event.type == SDL_CONTROLLERBUTTONUP) {
+			switch (event.cbutton.button) {
+				case SDL_CONTROLLER_BUTTON_DPAD_UP: input_up_key_pressed = 0;break;
+				case SDL_CONTROLLER_BUTTON_DPAD_DOWN: down_key_pressed = 0;break;
+				case SDL_CONTROLLER_BUTTON_DPAD_LEFT: left_key_pressed = 0;break;
+				case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: right_key_pressed = 0; break;
+				case SDL_CONTROLLER_BUTTON_A: jump_key_pressed = 0; break;
+				case SDL_CONTROLLER_BUTTON_B: bomb_key_pressed = 0;break;
+				default:break;
+			}
+		}
     }
 
     up_key_pressed = input_up_key_pressed;
@@ -253,7 +355,29 @@ SDL_Keycode poll_for_key_press(bool allow_key_repeat)
 
     while(SDL_PollEvent(&event))
     {
-        if (event.type == SDL_KEYDOWN && (allow_key_repeat || !event.key.repeat))
+		if (event.type == SDL_QUIT)
+        {
+            return QUIT;
+        }
+			if (GetButton(SDL_CONTROLLER_BUTTON_BACK)) {
+			  return SDLK_ESCAPE;
+			}		
+			if (GetButton(SDL_CONTROLLER_BUTTON_A)) {
+			  return SDLK_RETURN;
+			}		
+				if (GetButton(SDL_CONTROLLER_BUTTON_DPAD_UP)) {
+			  return SDLK_UP;
+			}		
+				if (GetButton(SDL_CONTROLLER_BUTTON_DPAD_DOWN)) {
+			  return SDLK_DOWN;
+			}		
+		if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_RESIZED) {
+			video_update();
+		}
+			
+		if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_F12) {
+				video_set_fullscreen(!isFullscreen());
+		} else  if (event.type == SDL_KEYDOWN && (allow_key_repeat || !event.key.repeat))
             return event.key.keysym.sym;
     }
     return SDLK_UNKNOWN;

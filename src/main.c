@@ -14,17 +14,24 @@
 #include "high_scores.h"
 #include "demo.h"
 #include "b800.h"
+#include "input.h"
 
 int cleanup_and_exit();
 
+#ifdef __MORPHOS__
+unsigned long __stack = 100000;
+static const char *version __attribute__((used)) = "$VER: Cosmo Engine (29.06.2020) port by BeWorld";
+#endif
+
 int main(int argc, char *argv[]) {
-    if ( SDL_Init(SDL_INIT_VIDEO) < 0 ) {
+    if ( SDL_Init(SDL_INIT_VIDEO  | SDL_INIT_GAMECONTROLLER) < 0 ) {
         printf("argh!!");
     }
 
     load_config_from_command_line(argc, argv);
 
     video_init();
+	controller_init();
     audio_init();
     game_init();
 
@@ -69,6 +76,7 @@ int cleanup_and_exit()
 {
     write_config_file();
     config_cleanup();
+	controller_shutdown();
     video_shutdown();
     audio_shutdown();
     SDL_Quit();
