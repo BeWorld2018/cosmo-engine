@@ -25,11 +25,4 @@ clean:
 	-rm -f $(TARGET) $(OBJS) 
 
 $(TARGET): $(OBJS)
-	gcc -O2 -s  -o $(TARGET) $(OBJS) -noixemul  -lSDL2_Mixer -lSDL2 -lc -lm -L/usr/local/lib
-
-run: $(TARGET)
-	$(KOS_LOADER) $(TARGET)
-
-dist:
-	rm -f $(OBJS)
-	$(KOS_STRIP) $(TARGET)
+	ppc-morphos-gcc-9 -O2 -s  -o $(TARGET) $(OBJS) -noixemul  -lSDL2_Mixer -lSDL2 -lc -lm -L/usr/local/lib
