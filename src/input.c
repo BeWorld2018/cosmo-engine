@@ -37,16 +37,65 @@ uint8 input_up_key_pressed = 0;
 
 uint8 byte_2E17C; //modifies the left, right and jump key presses TODO this isn't wired up yet. It might disable player input.
 
+static SDL_Keycode gamecontroller_to_keyboard(SDL_Event *event)
+{
+    SDL_Keycode kb_button;
+    SDL_ControllerButtonEvent e = event->cbutton;
+    switch (e.button)
+    {
+    case SDL_CONTROLLER_BUTTON_A:
+        kb_button = cfg_jump_key;
+        break;
+    case SDL_CONTROLLER_BUTTON_B:
+    case SDL_CONTROLLER_BUTTON_X:
+        kb_button = cfg_bomb_key;
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_UP:
+        kb_button = cfg_up_key;
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_DOWN:
+        kb_button = cfg_down_key;
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_LEFT:
+        kb_button = cfg_left_key;
+        break;
+    case SDL_CONTROLLER_BUTTON_DPAD_RIGHT:
+        kb_button = cfg_right_key;
+        break;
+    case SDL_CONTROLLER_BUTTON_START:
+        kb_button = SDLK_RETURN;
+        break;
+    case SDL_CONTROLLER_BUTTON_BACK:
+        kb_button = SDLK_q;
+        break;
+    case SDL_CONTROLLER_BUTTON_Y:
+        kb_button = SDLK_ESCAPE;
+        break;
+    default:
+        kb_button = SDLK_UNKNOWN;
+        break;
+    }
+    return kb_button;
+}
+
 void controller_init() {
 	
-	if (SDL_NumJoysticks() > 0) {
-		if (SDL_IsGameController(0)) {
-			controller = SDL_GameControllerOpen(0);		
-			if (controller) {
-				printf("Open GameController %s\n", SDL_GameControllerNameForIndex(0));
-			}
-		}		
-	}
+	flush_input();
+    if (SDL_InitSubSystem(SDL_INIT_GAMECONTROLLER) < 0)
+    {
+        printf("ERROR: intialising gamecontroller!\n");
+        return;
+    }
+
+    SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, "1");
+    for (int i = 0; i < SDL_NumJoysticks(); i++)
+    {
+        controller = SDL_GameControllerOpen(i);
+        if (controller != NULL) {
+			printf("Open GameController %s\n", SDL_GameControllerNameForIndex(i));
+            return;
+		}
+    }
 	
 }
 
@@ -55,6 +104,7 @@ void controller_shutdown() {
 	if (controller != NULL) {
 		SDL_GameControllerClose(controller);
 	}
+	SDL_QuitSubSystem(SDL_INIT_GAMECONTROLLER);
 	
 }
 
@@ -77,7 +127,8 @@ void wait_for_time_or_key(int delay_in_game_cycles)
 			if (event.type == SDL_KEYDOWN && event.key.keysym.sym == SDLK_F12) {
 				video_set_fullscreen(!isFullscreen());
 			}
-			else if (event.type == SDL_KEYDOWN && !event.key.repeat)
+			else if ((event.type == SDL_KEYDOWN && !event.key.repeat) ||
+                 event.type == SDL_CONTROLLERBUTTONDOWN)
             {
                 return;
             }
@@ -137,9 +188,9 @@ InputCommand get_input_command_from_keycode(SDL_Keycode keycode)
     return CMD_KEY_OTHER;
 }
 
-input_state_enum handle_key_down(SDL_KeyboardEvent event)
+input_state_enum handle_key_down(SDL_Keycode key)
 {
-    InputCommand command = get_input_command_from_keycode(event.keysym.sym);
+    InputCommand command = get_input_command_from_keycode(key);
 
     switch(command)
     {
@@ -162,7 +213,7 @@ input_state_enum handle_key_down(SDL_KeyboardEvent event)
             bomb_key_pressed = 1;
             break;
         default :
-            switch(event.keysym.sym)
+            switch(key)
             {
                 case SDLK_b : //FIXME testing code
                     num_bombs++;
@@ -210,9 +261,9 @@ input_state_enum handle_key_down(SDL_KeyboardEvent event)
     return CONTINUE;
 }
 
-input_state_enum handle_key_up(SDL_KeyboardEvent event)
+input_state_enum handle_key_up(SDL_Keycode key)
 {
-    InputCommand command = get_input_command_from_keycode(event.keysym.sym);
+    InputCommand command = get_input_command_from_keycode(key);
 
     switch(command)
     {
@@ -267,14 +318,22 @@ input_state_enum read_input()
 		}
         else if (event.type == SDL_KEYDOWN)
         {
-            if(handle_key_down(event.key) == QUIT)
+            if(handle_key_down(event.key.keysym.sym) == QUIT)
                 return QUIT;
         }
         else if (event.type == SDL_KEYUP)
         {
-            handle_key_up(event.key);
+            handle_key_up(event.key.keysym.sym);
         }
-		
+        else if (event.type == SDL_CONTROLLERBUTTONDOWN)
+        {
+            if(handle_key_down(gamecontroller_to_keyboard(&event)) == QUIT)
+                return QUIT;
+        }
+        else if (event.type == SDL_CONTROLLERBUTTONUP)
+        {
+            handle_key_up(gamecontroller_to_keyboard(&event));
+		}
 		if (event.type == SDL_CONTROLLERAXISMOTION) {
 			switch (event.caxis.axis) {
 			case SDL_CONTROLLER_AXIS_LEFTX:
@@ -305,32 +364,7 @@ input_state_enum read_input()
 				break;
 			}
 		}
-		if (event.type == SDL_CONTROLLERBUTTONDOWN) {
-			switch (event.cbutton.button) {
-				case SDL_CONTROLLER_BUTTON_DPAD_UP: input_up_key_pressed = 1;break;
-				case SDL_CONTROLLER_BUTTON_DPAD_DOWN: down_key_pressed = 1;break;
-				case SDL_CONTROLLER_BUTTON_DPAD_LEFT: left_key_pressed = 1;break;
-				case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: right_key_pressed = 1; break;
-				case SDL_CONTROLLER_BUTTON_A: jump_key_pressed = 1; break;
-				case SDL_CONTROLLER_BUTTON_B: bomb_key_pressed = 1;break;
-				case SDL_CONTROLLER_BUTTON_START:
-				case SDL_CONTROLLER_BUTTON_BACK:
-					   return QUIT;
-					break;
-				default: break;
-			}
-		}
-		if (event.type == SDL_CONTROLLERBUTTONUP) {
-			switch (event.cbutton.button) {
-				case SDL_CONTROLLER_BUTTON_DPAD_UP: input_up_key_pressed = 0;break;
-				case SDL_CONTROLLER_BUTTON_DPAD_DOWN: down_key_pressed = 0;break;
-				case SDL_CONTROLLER_BUTTON_DPAD_LEFT: left_key_pressed = 0;break;
-				case SDL_CONTROLLER_BUTTON_DPAD_RIGHT: right_key_pressed = 0; break;
-				case SDL_CONTROLLER_BUTTON_A: jump_key_pressed = 0; break;
-				case SDL_CONTROLLER_BUTTON_B: bomb_key_pressed = 0;break;
-				default:break;
-			}
-		}
+		
     }
 
     up_key_pressed = input_up_key_pressed;
@@ -379,6 +413,9 @@ SDL_Keycode poll_for_key_press(bool allow_key_repeat)
 				video_set_fullscreen(!isFullscreen());
 		} else  if (event.type == SDL_KEYDOWN && (allow_key_repeat || !event.key.repeat))
             return event.key.keysym.sym;
+		
+		if (event.type == SDL_CONTROLLERBUTTONDOWN)
+            return gamecontroller_to_keyboard(&event);
     }
     return SDLK_UNKNOWN;
 }
