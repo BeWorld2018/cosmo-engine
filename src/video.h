@@ -17,6 +17,10 @@
 void fade_to_black_speed_3();
 void fade_in_from_black_with_delay_3();
 
+#ifdef __MORPHOS__
+bool isFullscreen();
+#endif
+
 bool video_init();
 void video_shutdown();
 void video_set_fullscreen(bool new_state);

@@ -36,7 +36,7 @@ void fade_to_black_speed_3()
 
 bool init_surface(VideoSurface *surface, int width, int height)
 {
-    surface->texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_STREAMING, width, height);
+    surface->texture = SDL_CreateTexture(renderer, SDL_PIXELFORMAT_ARGB8888, SDL_TEXTUREACCESS_STREAMING, width, height);
     if(surface->texture == NULL)
     {
         printf("Error: creating texture. %s\n", SDL_GetError());
@@ -83,6 +83,8 @@ bool video_init()
         return false;
     }
 	
+	SDL_RenderSetLogicalSize( renderer,SCREEN_WIDTH*video_scale_factor, SCREEN_HEIGHT*video_scale_factor );
+		
     init_surface(&game_surface, SCREEN_WIDTH, SCREEN_HEIGHT);
     set_palette_on_surface(game_surface.surface);
 
@@ -92,9 +94,9 @@ bool video_init()
 
     set_game_mode();
 
-    SDL_SetRenderDrawColor( renderer, 0, 0, 0, 255 );
-    SDL_RenderClear( renderer );
-    SDL_RenderPresent( renderer);
+   // SDL_SetRenderDrawColor( renderer, 0, 0, 0, 255 );
+   // SDL_RenderClear( renderer );
+   // SDL_RenderPresent( renderer);
 
     video_has_initialised = true;
     return true;
@@ -129,8 +131,8 @@ void video_update()
 	#endif
 	
     VideoSurface *s = is_game_mode ? &game_surface : &text_surface;
-    SDL_BlitSurface(s->surface, NULL, s->windowSurface, NULL);
-
+	SDL_BlitSurface(s->surface, NULL, s->windowSurface, NULL);
+	#ifndef __MORPHOS__
     void *pixels;
     int pitch;
     SDL_LockTexture(s->texture, NULL, &pixels, &pitch);
@@ -140,7 +142,10 @@ void video_update()
                       SDL_PIXELFORMAT_RGBA8888,
                       pixels, pitch);
     SDL_UnlockTexture(s->texture);
-
+	
+	#else
+	SDL_UpdateTexture(s->texture, NULL,  s->windowSurface->pixels, s->windowSurface->pitch);
+	#endif
     /* Make the modified texture visible by rendering it */
     SDL_RenderCopy(renderer, s->texture, NULL, NULL);
 

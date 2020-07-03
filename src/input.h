@@ -5,6 +5,7 @@
 #ifndef COSMO_ENGINE_INPUT_H
 #define COSMO_ENGINE_INPUT_H
 
+#include <SDL.h>
 #include <SDL_keycode.h>
 #include "defines.h"
 

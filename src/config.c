@@ -18,7 +18,7 @@
 
 char *save_directory = NULL;
 char *game_data_directory = NULL;
-const char working_directory[] = ".";
+const char working_directory[] = "PROGDIR:";
 
 SDL_Keycode scancode_to_keycode(uint8 scan_code);
 uint8 keycode_to_scancode(SDL_Keycode keycode);
